@@ -16,7 +16,7 @@ pub fn compute_num_constraints(acir: &Circuit) -> u32 {
 
     for opcode in acir.opcodes.iter() {
         match opcode {
-            Opcode::Arithmetic(arith) => {
+            Opcode::AssertZero(arith) => {
                 // Each multiplication term adds an extra constraint
                 // plus one for the linear combination gate.
                 num_opcodes += arith.num_mul_terms() + 1;
@@ -37,7 +37,7 @@ mod test {
     use std::collections::BTreeSet;
 
     use super::*;
-    use acvm::acir::circuit::{Opcode, PublicInputs};
+    use acvm::acir::circuit::{ExpressionWidth, Opcode, PublicInputs};
     use acvm::acir::native_types::{Expression, Witness};
     use acvm::FieldElement;
 
@@ -52,8 +52,10 @@ mod test {
             linear_combinations: vec![(FieldElement::one(), a), (-FieldElement::one(), b)],
             q_c: FieldElement::zero(),
         };
-        let opcode = Opcode::Arithmetic(arith);
+        let opcode = Opcode::AssertZero(arith);
         let _circ = Circuit {
+            expression_width: ExpressionWidth::Unbounded,
+            recursive: false,
             current_witness_index: 2,
             opcodes: vec![opcode],
             public_parameters: PublicInputs(BTreeSet::from([Witness(1)])),

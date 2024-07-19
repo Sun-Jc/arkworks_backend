@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, convert::TryInto};
 use crate::concrete_cfg::{from_fe, CurveAcir, CurveAcirArithGate};
 use acvm::{
     acir::{
-        circuit::Circuit,
+        circuit::{Circuit, Opcode},
         native_types::{Expression, Witness, WitnessMap},
     },
     FieldElement,
@@ -25,8 +25,13 @@ impl From<(&Circuit, WitnessMap)> for CurveAcir {
         let arith_gates: Vec<_> = circuit
             .opcodes
             .iter()
-            .filter(|opcode| opcode.is_arithmetic())
-            .map(|opcode| CurveAcirArithGate::from(opcode.clone().arithmetic().unwrap()))
+            .filter_map(|opcode| {
+                if let Opcode::AssertZero(code) = opcode {
+                    Some(CurveAcirArithGate::from(code.clone()))
+                } else {
+                    None
+                }
+            })
             .collect();
 
         let num_variables: usize = circuit.num_vars().try_into().unwrap();
