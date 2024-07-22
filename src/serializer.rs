@@ -1,6 +1,5 @@
-use std::{collections::BTreeMap, convert::TryInto};
-
 use crate::concrete_cfg::{from_fe, CurveAcir, CurveAcirArithGate};
+use acvm::AcirField;
 use acvm::{
     acir::{
         circuit::{Circuit, Opcode},
@@ -8,15 +7,16 @@ use acvm::{
     },
     FieldElement,
 };
+use std::{collections::BTreeMap, convert::TryInto};
 
-impl From<&Circuit> for CurveAcir {
-    fn from(circuit: &Circuit) -> CurveAcir {
+impl From<&Circuit<FieldElement>> for CurveAcir {
+    fn from(circuit: &Circuit<FieldElement>) -> CurveAcir {
         CurveAcir::from((circuit, WitnessMap::new()))
     }
 }
 
-impl From<(&Circuit, WitnessMap)> for CurveAcir {
-    fn from(circ_val: (&Circuit, WitnessMap)) -> CurveAcir {
+impl From<(&Circuit<FieldElement>, WitnessMap<FieldElement>)> for CurveAcir {
+    fn from(circ_val: (&Circuit<FieldElement>, WitnessMap<FieldElement>)) -> CurveAcir {
         // Currently non-arithmetic gates are not supported
         // so we extract all of the arithmetic gates only
         let (circuit, witness_map) = circ_val;
@@ -57,8 +57,8 @@ impl From<(&Circuit, WitnessMap)> for CurveAcir {
     }
 }
 
-impl From<Expression> for CurveAcirArithGate {
-    fn from(arith_gate: Expression) -> CurveAcirArithGate {
+impl From<Expression<FieldElement>> for CurveAcirArithGate {
+    fn from(arith_gate: Expression<FieldElement>) -> CurveAcirArithGate {
         let converted_mul_terms: Vec<_> = arith_gate
             .mul_terms
             .into_iter()
