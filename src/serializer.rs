@@ -1,5 +1,6 @@
-use crate::concrete_cfg::{from_fe, CurveAcir, CurveAcirArithGate};
-use acvm::AcirField;
+use crate::bridge::{AcirArithGate, AcirCircuit};
+use crate::concrete_cfg::CurveAcir;
+use acvm::acir::acir_field::GenericFieldElement;
 use acvm::{
     acir::{
         circuit::{Circuit, Opcode},
@@ -7,6 +8,7 @@ use acvm::{
     },
     FieldElement,
 };
+use ark_ff::PrimeField;
 use std::{collections::BTreeMap, convert::TryInto};
 
 impl From<&Circuit<FieldElement>> for CurveAcir {
@@ -15,8 +17,18 @@ impl From<&Circuit<FieldElement>> for CurveAcir {
     }
 }
 
-impl From<(&Circuit<FieldElement>, WitnessMap<FieldElement>)> for CurveAcir {
-    fn from(circ_val: (&Circuit<FieldElement>, WitnessMap<FieldElement>)) -> CurveAcir {
+impl<F: PrimeField>
+    From<(
+        &Circuit<GenericFieldElement<F>>,
+        WitnessMap<GenericFieldElement<F>>,
+    )> for AcirCircuit<F>
+{
+    fn from(
+        circ_val: (
+            &Circuit<GenericFieldElement<F>>,
+            WitnessMap<GenericFieldElement<F>>,
+        ),
+    ) -> AcirCircuit<F> {
         // Currently non-arithmetic gates are not supported
         // so we extract all of the arithmetic gates only
         let (circuit, witness_map) = circ_val;
@@ -27,7 +39,7 @@ impl From<(&Circuit<FieldElement>, WitnessMap<FieldElement>)> for CurveAcir {
             .iter()
             .filter_map(|opcode| {
                 if let Opcode::AssertZero(code) = opcode {
-                    Some(CurveAcirArithGate::from(code.clone()))
+                    Some(AcirArithGate::<F>::from(code.clone()))
                 } else {
                     None
                 }
@@ -42,13 +54,13 @@ impl From<(&Circuit<FieldElement>, WitnessMap<FieldElement>)> for CurveAcir {
                 let witness = Witness(witness_index as u32);
                 let value = witness_map
                     .get(&witness)
-                    .map_or(FieldElement::zero(), |field| *field);
+                    .map_or(F::zero(), |field| field.into_repr());
 
-                (witness, from_fe(value))
+                (witness, value)
             })
             .collect();
 
-        CurveAcir {
+        AcirCircuit {
             gates: arith_gates,
             values,
             // num_variables,
@@ -57,24 +69,24 @@ impl From<(&Circuit<FieldElement>, WitnessMap<FieldElement>)> for CurveAcir {
     }
 }
 
-impl From<Expression<FieldElement>> for CurveAcirArithGate {
-    fn from(arith_gate: Expression<FieldElement>) -> CurveAcirArithGate {
+impl<F: PrimeField> From<Expression<GenericFieldElement<F>>> for AcirArithGate<F> {
+    fn from(arith_gate: Expression<GenericFieldElement<F>>) -> AcirArithGate<F> {
         let converted_mul_terms: Vec<_> = arith_gate
             .mul_terms
             .into_iter()
-            .map(|(coeff, l_var, r_var)| (from_fe(coeff), l_var, r_var))
+            .map(|(coeff, l_var, r_var)| (coeff.into_repr(), l_var, r_var))
             .collect();
 
         let converted_linear_combinations: Vec<_> = arith_gate
             .linear_combinations
             .into_iter()
-            .map(|(coeff, var)| (from_fe(coeff), var))
+            .map(|(coeff, var)| (coeff.into_repr(), var))
             .collect();
 
-        CurveAcirArithGate {
+        AcirArithGate {
             mul_terms: converted_mul_terms,
             add_terms: converted_linear_combinations,
-            constant_term: from_fe(arith_gate.q_c),
+            constant_term: arith_gate.q_c.into_repr(),
         }
     }
 }

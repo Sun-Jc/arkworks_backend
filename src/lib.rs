@@ -4,18 +4,30 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 
 use acvm::{
-    acir::circuit::{Circuit, Opcode},
+    acir::{
+        acir_field::GenericFieldElement,
+        circuit::{Circuit, Opcode, Program},
+    },
     FieldElement,
 };
+use ark_ff::PrimeField;
 use noirc_artifacts::program::ProgramArtifact;
 use noirc_driver::CompiledProgram;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 
 pub mod bridge;
 mod concrete_cfg;
 mod serializer;
+use fm::FileId;
+use serde::{Deserialize, Serialize};
 
 pub use concrete_cfg::{from_fe, Curve, CurveAcir, Fr};
+use noirc_abi::Abi;
+use noirc_driver::DebugFile;
+use noirc_errors::debug_info::ProgramDebugInfo;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -25,17 +37,40 @@ pub enum FilesystemError {
     #[error("Error: could not deserialize build program: {0}")]
     ProgramSerializationError(String),
 }
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct ProgramArtifactGeneric<F: PrimeField> {
+    pub noir_version: String,
 
-pub fn read_program_from_file<P: AsRef<Path>>(
+    /// Hash of the [`Program`][noirc_frontend::monomorphization::ast::Program] from which this [`ProgramArtifact`]
+    /// was compiled.
+    ///
+    /// Used to short-circuit compilation in the case of the source code not changing since the last compilation.
+    pub hash: u64,
+    pub abi: Abi,
+    #[serde(
+        serialize_with = "Program::serialize_program_base64",
+        deserialize_with = "Program::deserialize_program_base64"
+    )]
+    pub bytecode: Program<GenericFieldElement<F>>,
+    #[serde(
+        serialize_with = "ProgramDebugInfo::serialize_compressed_base64_json",
+        deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
+    )]
+    pub debug_symbols: ProgramDebugInfo,
+    /// Map of file Id to the source code so locations in debug info can be mapped to source code they point to.
+    pub file_map: BTreeMap<FileId, DebugFile>,
+    pub names: Vec<String>,
+}
+
+pub fn read_program_from_file<F: PrimeField, P: AsRef<Path>>(
     circuit_path: P,
-) -> Result<CompiledProgram, FilesystemError> {
+) -> Result<Program<GenericFieldElement<F>>, FilesystemError> {
     let file_path = circuit_path.as_ref().with_extension("json");
     let input_string =
         std::fs::read(&file_path).map_err(|_| FilesystemError::PathNotValid(file_path))?;
-    let program: ProgramArtifact = serde_json::from_slice(&input_string)
+    let program: ProgramArtifactGeneric<F> = serde_json::from_slice(&input_string)
         .map_err(|err| FilesystemError::ProgramSerializationError(err.to_string()))?;
-    let compiled_program: CompiledProgram = program.into();
-    Ok(compiled_program)
+    Ok(program.bytecode)
 }
 
 pub fn compute_num_opcodes(acir: &Circuit<FieldElement>) -> u32 {
@@ -61,6 +96,7 @@ pub fn compute_num_opcodes(acir: &Circuit<FieldElement>) -> u32 {
 
 #[cfg(test)]
 mod test {
+    use acvm::acir::acir_field::GenericFieldElement;
     use acvm::blackbox_solver::StubbedBlackBoxSolver;
     use acvm::pwg::ACVM;
     use acvm::AcirField;
@@ -106,7 +142,8 @@ mod test {
         let cur_path = env::current_dir().unwrap();
         let circuit_path = format!("{}/src/artifacts/test_circuit", cur_path.to_str().unwrap());
         let compiled_prg = read_program_from_file(circuit_path).unwrap();
-        let circuit: Circuit<FieldElement> = compiled_prg.program.functions[0].clone();
+        type F = GenericFieldElement<Fr>;
+        let circuit: Circuit<F> = compiled_prg.functions[0].clone();
 
         // instantiate acvm to compute a witness
         let mut acvm = ACVM::new(
@@ -118,12 +155,12 @@ mod test {
         );
 
         // provide public input parameters
-        acvm.overwrite_witness(Witness(0), FieldElement::from(2 as usize));
-        acvm.overwrite_witness(Witness(1), FieldElement::from(2 as usize));
+        acvm.overwrite_witness(Witness(0), F::from(2 as usize));
+        acvm.overwrite_witness(Witness(1), F::from(2 as usize));
 
         // provide private input parameters
-        acvm.overwrite_witness(Witness(2), FieldElement::from(2 as usize));
-        acvm.overwrite_witness(Witness(3), FieldElement::from(2 as usize));
+        acvm.overwrite_witness(Witness(2), F::from(2 as usize));
+        acvm.overwrite_witness(Witness(3), F::from(2 as usize));
         acvm.solve();
         let witness_map = acvm.finalize();
 
