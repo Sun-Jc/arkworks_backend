@@ -14,7 +14,7 @@ acvm = { git = "https://github.com/noir-lang/noir", rev="2b4853e", default-featu
 noirc_artifacts = { git = "https://github.com/noir-lang/noir", rev="2b4853e" }
 noirc_driver = { git = "https://github.com/noir-lang/noir", rev="2b4853e"}
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-thiserror = "1.0.63"
+thiserror = "1.0.39"
 
 ark-ff = { version = "0.4.0", default-features = false }
 ark-relations = { version = "0.4.0", default-features = false }
