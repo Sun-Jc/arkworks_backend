@@ -11,8 +11,6 @@ use acvm::{
     FieldElement,
 };
 use ark_ff::PrimeField;
-use noirc_artifacts::program::ProgramArtifact;
-use noirc_driver::CompiledProgram;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -21,6 +19,7 @@ use std::{
 pub mod bridge;
 mod concrete_cfg;
 mod serializer;
+pub mod sonobe_bridge;
 use fm::FileId;
 use serde::{Deserialize, Serialize};
 

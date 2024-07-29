@@ -1,5 +1,6 @@
 use crate::bridge::{AcirArithGate, AcirCircuit};
 use crate::concrete_cfg::CurveAcir;
+use crate::sonobe_bridge::AcirCircuitSonobe;
 use acvm::acir::acir_field::GenericFieldElement;
 use acvm::{
     acir::{
@@ -9,11 +10,35 @@ use acvm::{
     FieldElement,
 };
 use ark_ff::PrimeField;
+use ark_r1cs_std::fields::fp::FpVar;
+use ark_r1cs_std::R1CSVar;
+use std::collections::HashMap;
 use std::{collections::BTreeMap, convert::TryInto};
 
 impl From<&Circuit<FieldElement>> for CurveAcir {
     fn from(circuit: &Circuit<FieldElement>) -> CurveAcir {
         CurveAcir::from((circuit, WitnessMap::new()))
+    }
+}
+impl<'a, F: PrimeField>
+    From<(
+        &Circuit<GenericFieldElement<F>>,
+        WitnessMap<GenericFieldElement<F>>,
+    )> for AcirCircuitSonobe<'a, F>
+{
+    fn from(
+        circ_val: (
+            &Circuit<GenericFieldElement<F>>,
+            WitnessMap<GenericFieldElement<F>>,
+        ),
+    ) -> AcirCircuitSonobe<'a, F> {
+        let circuit = AcirCircuit::from(circ_val);
+        AcirCircuitSonobe {
+            gates: circuit.gates,
+            public_inputs: circuit.public_inputs,
+            values: circuit.values,
+            already_assigned_witnesses: HashMap::new(),
+        }
     }
 }
 
