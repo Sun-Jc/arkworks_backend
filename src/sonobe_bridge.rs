@@ -64,13 +64,6 @@ impl<'a, ConstraintF: Field + PrimeField> ConstraintSynthesizer<ConstraintF>
                 }
             };
             variables.push(var);
-
-            //let var = if self.public_inputs.contains(i.0.try_into().unwrap()) {
-            //    cs.new_input_variable(|| Ok(*val))?
-            //} else {
-            //    cs.new_witness_variable(|| Ok(*val))?
-            //};
-            //variables.push(var);
         }
 
         // Now iterate each gate and add it to the constraint system

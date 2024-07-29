@@ -10,8 +10,6 @@ use acvm::{
     FieldElement,
 };
 use ark_ff::PrimeField;
-use ark_r1cs_std::fields::fp::FpVar;
-use ark_r1cs_std::R1CSVar;
 use std::collections::HashMap;
 use std::{collections::BTreeMap, convert::TryInto};
 
