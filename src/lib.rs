@@ -72,6 +72,14 @@ pub fn read_program_from_file<F: PrimeField, P: AsRef<Path>>(
     Ok(program.bytecode)
 }
 
+pub fn read_program_from_binary<F: PrimeField>(
+    bin: &Vec<u8>,
+) -> Result<Program<GenericFieldElement<F>>, FilesystemError> {
+    let program: ProgramArtifactGeneric<F> = serde_json::from_slice(&bin)
+        .map_err(|err| FilesystemError::ProgramSerializationError(err.to_string()))?;
+    Ok(program.bytecode)
+}
+
 pub fn compute_num_opcodes(acir: &Circuit<FieldElement>) -> u32 {
     let mut num_opcodes = acir.opcodes.len();
 
@@ -140,7 +148,12 @@ mod test {
         let cs = ConstraintSystem::new_ref();
         let cur_path = env::current_dir().unwrap();
         let circuit_path = format!("{}/src/artifacts/test_circuit", cur_path.to_str().unwrap());
-        let compiled_prg = read_program_from_file(circuit_path).unwrap();
+
+        let file_path = PathBuf::from(&circuit_path).with_extension("json");
+        let input_string = std::fs::read(&file_path)
+            .map_err(|_| FilesystemError::PathNotValid(file_path))
+            .expect("Error reading the file");
+        let compiled_prg = read_program_from_binary(&input_string).unwrap();
         type F = GenericFieldElement<Fr>;
         let circuit: Circuit<F> = compiled_prg.functions[0].clone();
 
