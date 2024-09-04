@@ -83,8 +83,12 @@ impl<'a, ConstraintF: Field + PrimeField> ConstraintSynthesizer<ConstraintF>
                 {
                     let left = (ConstraintF::one(), variables[mul_term.1.as_usize()]);
                     let right = (ConstraintF::one(), variables[mul_term.2.as_usize()]);
-
-                    cs.enforce_constraint(lc!() + left, lc!() + right, lc!())?;
+                    if let FpVar::Var(allocated) = &out_var {
+                        let prod = (ConstraintF::one(), allocated.variable);
+                        cs.enforce_constraint(lc!() + left, lc!() + right, lc!() + prod)?;
+                    } else {
+                        panic!("Expected out_var to be of type FpVar::Var");
+                    }
                 }
 
                 // out var can't be a type different from FpVar::Var
